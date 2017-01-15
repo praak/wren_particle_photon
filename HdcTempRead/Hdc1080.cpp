@@ -1,5 +1,5 @@
 /***************************************************
-  This is a library for the HDC1000 Humidity & Temp Sensor
+  This is a library for the HDC1080 Humidity & Temp Sensor
 
   Designed specifically to work with the HDC1008 sensor from Adafruit
   ----> https://www.adafruit.com/products/2635
@@ -16,56 +16,43 @@
   Modified for Photon  needs application.h for types  RMB
  ****************************************************/
 #include "application.h"
-#include "Adafruit_HDC1000.h"
+#include "Hdc1080.h"
 
 
-Adafruit_HDC1000::Adafruit_HDC1000() {
+Hdc1080::Hdc1080() {
 }
 
 
-boolean Adafruit_HDC1000::begin(uint8_t addr) {
+boolean Hdc1080::begin(uint8_t addr) {
   _i2caddr = addr;
 
   Wire.begin();
 
   reset();
-  if (read16(HDC1000_MANUFID) != 0x5449) return false;
-  if (read16(HDC1000_DEVICEID) != 0x1000) return false;
+  if (read16(HDC1080_MANUFID) != 0x5449) return false;
+  if (read16(HDC1080_DEVICEID) != 0x1000) return false;
   return true;
 }
 
 
 
-void Adafruit_HDC1000::reset(void) {
+void Hdc1080::reset(void) {
   // reset,combined temp/humidity measurement,and select 14 bit temp & humidity resolution
   // heater not needed for accurate humidity readings     RMB
-  uint16_t config = HDC1000_CONFIG_RST | HDC1000_CONFIG_MODE | HDC1000_CONFIG_TRES_14 | HDC1000_CONFIG_HRES_14 ;
+  uint16_t config = HDC1080_CONFIG_RST | HDC1080_CONFIG_MODE | HDC1080_CONFIG_TRES_14 | HDC1080_CONFIG_HRES_14 ;
 
   Wire.beginTransmission(_i2caddr);
-  Wire.write(HDC1000_CONFIG);   // set pointer register to configuration register   RMB
+  Wire.write(HDC1080_CONFIG);   // set pointer register to configuration register   RMB
   Wire.write(config>>8);        // now write out 2 bytes MSB first    RMB
   Wire.write(config&0xFF);
   Wire.endTransmission();
   delay(15);
 }
 
-
-float Adafruit_HDC1000::readTemperature(void) {
-  // does not set private variable
-  float temp = (read32(HDC1000_TEMP, 20) >> 16);
-
-  temp /= 65536;
-  temp *= 165;
-  temp -= 40;
-
-  return temp;
-}
-
-
-float Adafruit_HDC1000::readHumidity(void) {
+float Hdc1080::getHumidity(void) {
   // reads both temp and humidity but masks out temp in highest 16 bits
   // does not set private variable
-  float hum = (read32(HDC1000_TEMP, 20) & 0xFFFF);
+  float hum = (read32(HDC1080_TEMP, 20) & 0xFFFF);
 
   hum /= 65536;
   hum *= 100;
@@ -73,58 +60,39 @@ float Adafruit_HDC1000::readHumidity(void) {
   return hum;
 }
 
-void Adafruit_HDC1000::ReadTempHumidity(void) {
-  // HDC1008 setup to measure both temperature and humidity in one sequential conversion
-  // this is a different way to access data in ONE read
-  // this sets internal private variables that can be accessed by Get() functions
-
-  uint32_t rt,rh ;  // working variables
-
-  rt = read32(HDC1000_TEMP, 20);    // get temp and humidity reading together
-  rh = rt;                          // save a copy for humidity processing
-
-  // important to use ( ) around temp so private variable set and float cast done
-  float (temp = (rt >> 16));        // convert to temp first
+float Hdc1080::getTemperatureCelcius(void) {
+  // getter function to access private temp variable
+  uint32_t rt = read32(HDC1080_TEMP, 20) >> 16; // relative temperature
+  float (temp = (rt));        // convert to temp first
   temp /= 65536;
   temp *= 165;
   temp -= 40;
-
-  // important to use ( ) around humidity so private variable set and float cast done
-  float (humidity = (rh & 0xFFFF));   // now convert to humidity
-  humidity /= 65536;
-  humidity *= 100;
-}
-
-float Adafruit_HDC1000::GetTemperature(void) {
-  // getter function to access private temp variable
-
   return temp ;
 }
 
-float Adafruit_HDC1000::GetHumidity(void) {
-  // getter function to access private humidity variable
-
-  return humidity ;
+float Hdc1080::getTemperatureFahrenheit(void) {
+  // getter function to access private temp variable
+  float celcius = getTemperatureCelcius();
+  float fahrenheit = (celcius * 9/5) + 32;
+  return fahrenheit;
 }
 
 // Add ability to test battery voltage, useful in remote monitoring, TRUE if <2.8V
 // usually called after Temp/Humid reading  RMB
 // Thanks to KFricke for micropython-hdc1008 example on GitHub
-boolean Adafruit_HDC1000::batteryLOW(void)  {
+boolean Hdc1080::batteryLOW(void)  {
   // set private variable, don't need delay to read Config register
-  battLOW = (read16(HDC1000_CONFIG, 0));
+  battLOW = (read16(HDC1080_CONFIG, 0));
 
-  battLOW &= HDC1000_CONFIG_BATT;   // mask off other bits, bit 11 will be 1 if voltage < 2.8V
+  battLOW &= HDC1080_CONFIG_BATT;   // mask off other bits, bit 11 will be 1 if voltage < 2.8V
 
   if (battLOW > 0) return true;
   return  false;
 }
 
-
-
 /*********************************************************************/
 
-uint16_t Adafruit_HDC1000::read16(uint8_t a, uint8_t d) {
+uint16_t Hdc1080::read16(uint8_t a, uint8_t d) {
   Wire.beginTransmission(_i2caddr);
   Wire.write(a);
   Wire.endTransmission();
@@ -137,7 +105,7 @@ uint16_t Adafruit_HDC1000::read16(uint8_t a, uint8_t d) {
   return r;
 }
 
-uint32_t Adafruit_HDC1000::read32(uint8_t a, uint8_t d) {
+uint32_t Hdc1080::read32(uint8_t a, uint8_t d) {
   Wire.beginTransmission(_i2caddr);
   Wire.write(a);
   Wire.endTransmission();
