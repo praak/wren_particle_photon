@@ -54,10 +54,21 @@ static const unsigned char logo16_glcd_bmp[] =
 
 Hdc1080 hdc = Hdc1080();
 
+
+int remoteTemp(int posVal, int negVal)
+{
+  posVal = posVal * 0.00322265625;
+  negVal = negVal * 0.00322265625;
+  int voltage = posVal - negVal;
+  int degreesC = -5.3546*voltage*voltage + 31.279*voltage + 21.531;
+  int degreesF = degreesC * (9.0/5.0) + 32.0;
+  return degreesF;
+}
+
 void setup() {
   Serial.begin(9600);
-
-  Serial.println("beginning of setup");
+  Serial1.begin(9600);
+  /*Serial.println("beginning of setup");*/
   /*delay(5000);*/
   display.begin();
   //init done
@@ -77,42 +88,54 @@ void setup() {
   hdc.begin(0x40);
   delay(15);  // giving delay time for the chip to initialize
 
-  Serial.println("end of setup");
+  /*Serial.println("end of setup");*/
 
 }
 
 void loop() {
-
   /*Serial.println("beginning of loop");*/
 
 // Working code to get temp and print on display
   float tempC = hdc.getTemperatureFahrenheit();
   Serial.flush();
-  Serial.println(tempC);
+  /*Serial.println(tempC);*/
   delay(500);
   display.clearDisplay();
-  display.setTextSize(2);
+  display.setTextSize(1);
   display.setTextColor(BLACK);
   display.setCursor(15,0);
   display.println("WREN");
-  display.setCursor(15,18);
-  /*display.println("Check");*/
+  display.setTextSize(1);
   display.println(tempC);
-  delay(2000);
-  display.display();
-
-// To see what xbee's serial is showing (to get values sent from remote sensor)
-/*
-  while(Serial.available()){
-    Serial.println(Serial.read());
+  display.println(Serial1.readStringUntil('\n'));
+  /*int ndex = 0;*/
+  /*int myInts[2];
+  int done = 0;*/
+// this may be alright now, but wont be able to work the best when reading with slow and such.
+// basically it might not be able to take all the values in one run. . not sure.
+  /*while (done = 0)
+  {
+    if (Serial1.readStringUntil('\n').toInt() == 0)
+    {
+      myInts[0] = Serial1.readStringUntil('\n').toInt();
+      myInts[1] = Serial1.readStringUntil('\n').toInt();
+      done = 1;
+    }
+    else
+    {
+      done = 0;
+    }
   }*/
-
-
-  //
-  /*Serial.println("end of loop");*/
-
+  /*int tempFF = remoteTemp(myInts[0],myInts[1]);*/
+  /*Serial.println(myInts[0]);
+  Serial.println(myInts[1]);*/
+  /*Serial.println(tempFF);*/
+  /*display.println(tempFF);*/
+  delay(500);
+  display.display();
 }
 
+// might need this for interupts ? potentially.
 /*void connect() {
   if(Particle.connected() == false){
     Particle.connect();

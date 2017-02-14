@@ -18,7 +18,6 @@
 #include "application.h"
 #include "Hdc1080.h"
 
-
 Hdc1080::Hdc1080() {
 }
 

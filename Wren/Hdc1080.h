@@ -16,6 +16,7 @@
   Sensor datasheet: http://www.ti.com/lit/ds/symlink/hdc1008.pdf
 
  ****************************************************/
+#include "application.h"
 
 #define HDC1080_I2CADDR       0x40
 #define HDC1080_TEMP          0x00
