@@ -4,6 +4,12 @@
 #include "Hdc1080.h"
 #include "Adafruit_GFX.h"
 #include "Adafruit_PCD8544.h"
+#include "PhotonPins.h"
+
+
+
+
+
 
 // (FAST) SOFTWARE SPI
 // pin A3 - Serial clock out (SCLK) - User defined
@@ -52,10 +58,11 @@ static const unsigned char logo16_glcd_bmp[] =
   0B01110000, 0B01110000,
   0B00000000, 0B00110000 };
 
+int i = 0;
 Hdc1080 hdc = Hdc1080();
 
 
-int remoteTemp(int posVal, int negVal)
+/*int remoteTemp(int posVal, int negVal)
 {
   posVal = posVal * 0.00322265625;
   negVal = negVal * 0.00322265625;
@@ -63,9 +70,25 @@ int remoteTemp(int posVal, int negVal)
   int degreesC = -5.3546*voltage*voltage + 31.279*voltage + 21.531;
   int degreesF = degreesC * (9.0/5.0) + 32.0;
   return degreesF;
-}
-
+}*/
 void setup() {
+  pinMode(RX, INPUT);
+  pinMode(TX, OUTPUT);
+  /*pinMode(SPI_LCD, OUTPUT);
+  pinMode(LCD_LED, OUTPUT);
+  pinMode(SPI_CLOCK, OUTPUT);
+  pinMode(LCD_DC, OUTPUT);
+  pinMode(LCD_RST, OUTPUT);
+  pinMode(LCD_SCE, OUTPUT);
+  pinMode(HEAT, OUTPUT);
+  pinMode(FAN, OUTPUT);
+  pinMode(SW2, OUTPUT);// maybe input
+  pinMode(COOL, OUTPUT);
+  pinMode(SW1, OUTPUT);// maybe input
+  pinMode(SCL, INPUT);
+  pinMode(SDA, INPUT);*/
+
+
   Serial.begin(9600);
   Serial1.begin(9600);
   /*Serial.println("beginning of setup");*/
@@ -96,10 +119,19 @@ void loop() {
   /*Serial.println("beginning of loop");*/
 
 // Working code to get temp and print on display
+  if (i = 1){
+    digitalWrite(TX, 1);
+  }
+  else{
+    digitalWrite(TX, 0);
+  }
+
   float tempC = hdc.getTemperatureFahrenheit();
   Serial.flush();
+  //Serial1.flush();
   /*Serial.println(tempC);*/
   delay(500);
+
   display.clearDisplay();
   display.setTextSize(1);
   display.setTextColor(BLACK);
@@ -107,7 +139,11 @@ void loop() {
   display.println("WREN");
   display.setTextSize(1);
   display.println(tempC);
-  display.println(Serial1.readStringUntil('\n'));
+  if (i = 1){
+    String str1 = Serial1.readStringUntil('\n');
+    display.println(str1);
+    Serial.println(str1);
+  }
   /*int ndex = 0;*/
   /*int myInts[2];
   int done = 0;*/
@@ -133,7 +169,12 @@ void loop() {
   /*display.println(tempFF);*/
   delay(500);
   display.display();
+  i++;
+  if(i > 50){
+  i = 0;
+  }
 }
+
 
 // might need this for interupts ? potentially.
 /*void connect() {
