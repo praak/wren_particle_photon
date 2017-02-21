@@ -14,6 +14,8 @@
 #include <avr/sleep.h>
 #include <avr/power.h>
 #include <avr/wdt.h>
+#include <SoftwareSerial.h>
+
 
 // Routines to set and clear bits (used in the sleep code(myWatchdogEnable))
 #ifndef cbi
@@ -39,7 +41,20 @@
 // #define LED 5
 // int Prescaler_mode = 4;
 // const int A0_pin = A0;
+
+
+/*********************
+* Variable Declaration
+*********************/
  volatile boolean f_wdt = 1;
+int sensorPos = 1;// (SCK/USCK/SCL/ADC1/T0/INT0/PCINT2) PB2 (Pin 7)
+int sensorNeg = 3; // (PCINT3/XTAL1/CLKI/OC1B/ADC3) PB3 (Pin 2)
+int TX = 4; // (PCINT4/XTAL2/CLKO/OC1B/ADC2) PB4 (Pin 3) 
+int RX =  5; // (PCINT5/RESET/ADC0/dW) PB5 (Pin 1)
+int power = 1;
+int Name = 1;
+float voltage, negVoltage, posVoltage, degreesC;
+SoftwareSerial XBee(RX,TX);
 
 
 /*********************
@@ -91,6 +106,28 @@ void myWatchdogEnable(const byte interval)
   
 } 
 
+/*********************
+* float getVoltage
+*********************/
+float getVoltage(int pin)
+{
+  return (analogRead(pin)* 0.00322265625);//0.0029296875); // Old value = * 0.00322265625);
+}
+
+/*********************
+* float degreesF
+*********************/
+float degreesF(int pin)
+{
+//      delay(500);
+      digitalWrite(power, HIGH);
+      negVoltage = getVoltage(sensorNeg);
+      posVoltage = getVoltage(sensorPos);
+      voltage = posVoltage - negVoltage;
+      degreesC = -5.3546*voltage*voltage + 31.279*voltage + 22.231;//21.531;
+      return (degreesC * (9.0/5.0) + 32.0);
+  }
+  
 
 /*********************
 * VOID SETUP
@@ -98,15 +135,19 @@ void myWatchdogEnable(const byte interval)
 void setup()
 {
 //  Set_prescaler(Prescaler_mode);  // 1/16 clock speed
-  int i;
-  for(i = 0; i <= 5; i++)  // all pins set as input with pullup resistor
-  {
-    pinMode(i, INPUT);
-    digitalWrite(i, HIGH);
-  } 
+//  int i;
+//  for(i = 0; i <= 18; i++)  // all pins set as input with pullup resistor, but causes temp values to increase by 20F or so
+//  {
+//    pinMode(i, INPUT);
+//    digitalWrite(i, HIGH);
+//  } 
   //Set Pins that will be used
-//  pinMode (LED, OUTPUT);
-//  pinMode(A0_pin, INPUT);
+  pinMode(power,OUTPUT);
+  pinMode(RX,INPUT);
+  pinMode(TX,OUTPUT);
+  pinMode(sensorPos, INPUT);
+  pinMode(sensorNeg, INPUT);
+  XBee.begin(9600);
 }
 
 
@@ -121,6 +162,11 @@ void loop()
     f_wdt = 0;       // reset flag
 
     //Do stuff here
+    XBee.print(degreesF(power));
+    XBee.print("                ID: ");
+    XBee.println(Name);
+    delay(500);
+    digitalWrite(power, LOW);
    }
   /*********************
    * SLEEP BIT PATTERNS
@@ -130,11 +176,9 @@ void loop()
    * 8 seconds: 0b100001
    *********************/
     // Set the ports to be inputs - saves more power
-//    pinMode(txPin, INPUT);  
-//    pinMode(redled, INPUT);
-//    pinMode(buzzLedSw, INPUT);        // First want to read the switch
-//    pinMode(FETdriver, INPUT);
-    
+//  pinMode(power,INPUT);
+//  pinMode(TX,INPUT);
+
   // sleep for a total of 32 seconds (8*4)
   int i;
   for (i = 0; i < 4; i++)
@@ -143,9 +187,6 @@ void loop()
   }
 
     // Set the ports to be output again
-//    pinMode(rxPin, INPUT);
-//    pinMode(txPin, OUTPUT);  
-//    pinMode(redled, OUTPUT);
-//    pinMode(buzzLedSw, OUTPUT);        // First want to read the switch
-//    pinMode(FETdriver, OUTPUT);
+//  pinMode(power,OUTPUT);
+//  pinMode(TX,OUTPUT);
 } // end of loop
