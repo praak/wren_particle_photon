@@ -97,6 +97,8 @@ void loop() {
 
 // Working code to get temp and print on display
   float tempC = hdc.getTemperatureFahrenheit();
+  int cc = int(tempC);
+  Particle.publish("wall_temp",Serial1.readStringUntil('\n'));
   Serial.flush();
   /*Serial.println(tempC);*/
   delay(500);
@@ -107,6 +109,7 @@ void loop() {
   display.println("WREN");
   display.setTextSize(1);
   display.println(tempC);
+  display.println(cc);
   display.println(Serial1.readStringUntil('\n'));
   /*int ndex = 0;*/
   /*int myInts[2];

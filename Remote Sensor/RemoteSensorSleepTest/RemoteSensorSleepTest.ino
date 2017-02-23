@@ -6,7 +6,7 @@
 
  This code puts both the ATTiny85, Temperature sensing circuit and Xbee
  to sleep and wakes after X seconds(based on the for loop at the end).
- After waking, the MCU takes temperature readings, turns on the XBee,
+ After waking, the MCU turns on the XBee, waits .5sec, takes temperature readings, 
  then sends the data (possibly previous temp readings as well which is
  not implemented atm), then disables the XBee and temp circuit before 
  going into sleep mode again.
@@ -51,6 +51,7 @@ int sensorPos = 1;// (SCK/USCK/SCL/ADC1/T0/INT0/PCINT2) PB2 (Pin 7)
 int sensorNeg = 3; // (PCINT3/XTAL1/CLKI/OC1B/ADC3) PB3 (Pin 2)
 int TX = 4; // (PCINT4/XTAL2/CLKO/OC1B/ADC2) PB4 (Pin 3) 
 int RX =  5; // (PCINT5/RESET/ADC0/dW) PB5 (Pin 1)
+int XBee_wake = 0; // (MOSI/DI/SDA/AIN0/OC0A/OC1A/AREF/PCINT0) PB0 (Pin 5) *HIGH = asleep LOW = awake
 int power = 1;
 int Name = 1;
 float voltage, negVoltage, posVoltage, degreesC;
@@ -90,7 +91,7 @@ void myWatchdogEnable(const byte interval)
 //  WDTCSR |= 0b00011000;               // see docs, set WDCE, WDE
 //  WDTCSR =  0b01000000 | interval;    // set WDIE, and appropriate delay
 //  
-  cbi(ADCSRA,ADEN);                    // switch Analog to Digitalconverter OFF
+//  cbi(ADCSRA,ADEN);                    // switch Analog to Digitalconverter OFF
 
   wdt_reset();
   
@@ -102,7 +103,7 @@ void myWatchdogEnable(const byte interval)
 
   sleep_disable();                     // System continues execution here when watchdog timed out 
   
-  sbi(ADCSRA,ADEN);                    // switch Analog to Digitalconverter ON
+//  sbi(ADCSRA,ADEN);                    // switch Analog to Digitalconverter ON
   
 } 
 
@@ -119,7 +120,8 @@ float getVoltage(int pin)
 *********************/
 float degreesF(int pin)
 {
-//      delay(500);
+      digitalWrite(XBee_wake, LOW);
+      delay(500);
       digitalWrite(power, HIGH);
       negVoltage = getVoltage(sensorNeg);
       posVoltage = getVoltage(sensorPos);
@@ -143,10 +145,12 @@ void setup()
 //  } 
   //Set Pins that will be used
   pinMode(power,OUTPUT);
+  pinMode(XBee_wake,OUTPUT);
   pinMode(RX,INPUT);
   pinMode(TX,OUTPUT);
   pinMode(sensorPos, INPUT);
   pinMode(sensorNeg, INPUT);
+  digitalWrite(XBee_wake, LOW);
   XBee.begin(9600);
 }
 
@@ -161,12 +165,12 @@ void loop()
     
     f_wdt = 0;       // reset flag
 
-    //Do stuff here
+    //Do stuff here 
     XBee.print(degreesF(power));
     XBee.print("                ID: ");
     XBee.println(Name);
-    delay(500);
     digitalWrite(power, LOW);
+    digitalWrite(XBee_wake, HIGH);  
    }
   /*********************
    * SLEEP BIT PATTERNS
@@ -179,13 +183,14 @@ void loop()
 //  pinMode(power,INPUT);
 //  pinMode(TX,INPUT);
 
+  cbi(ADCSRA,ADEN);                    // switch Analog to Digitalconverter OFF only 1x per sleep
   // sleep for a total of 32 seconds (8*4)
   int i;
-  for (i = 0; i < 4; i++)
+  for (i = 0; i < 2; i++) // Multiplier for sleep timer
   {  
     myWatchdogEnable (0b100001);  // 8 seconds
   }
-
+  sbi(ADCSRA,ADEN);                    // switch Analog to Digitalconverter ON
     // Set the ports to be output again
 //  pinMode(power,OUTPUT);
 //  pinMode(TX,OUTPUT);
