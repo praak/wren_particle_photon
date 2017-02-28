@@ -5,6 +5,7 @@
 #include "Adafruit_GFX.h"
 #include "Adafruit_PCD8544.h"
 
+
 // (FAST) SOFTWARE SPI
 // pin A3 - Serial clock out (SCLK) - User defined
 // pin A5 - Serial data out (DIN/MOSI) - User defined
@@ -54,6 +55,9 @@ static const unsigned char logo16_glcd_bmp[] =
 
 Hdc1080 hdc = Hdc1080();
 
+int count;
+unsigned long lastTime = 0UL;
+char publishString[256];
 
 int remoteTemp(int posVal, int negVal)
 {
@@ -66,6 +70,7 @@ int remoteTemp(int posVal, int negVal)
 }
 
 void setup() {
+  Particle.variable("Data", publishString);
   Serial.begin(9600);
   Serial1.begin(9600);
   /*Serial.println("beginning of setup");*/
@@ -89,16 +94,19 @@ void setup() {
   delay(15);  // giving delay time for the chip to initialize
 
   /*Serial.println("end of setup");*/
-
+  count=0;
 }
 
 void loop() {
   /*Serial.println("beginning of loop");*/
 
+unsigned long now = millis();
 // Working code to get temp and print on display
-  float tempC = hdc.getTemperatureFahrenheit();
+  float tempC = hdc.getTemperatureCelcius();
+/*
+  Particle.publish("wall_temp",String((int)tempC));*/
   Serial.flush();
-  /*Serial.println(tempC);*/
+  /*Serial.println(tempF);*/
   delay(500);
   display.clearDisplay();
   display.setTextSize(1);
@@ -133,8 +141,17 @@ void loop() {
   /*display.println(tempFF);*/
   delay(500);
   display.display();
+
+  jsonPublish(72,1,744,2,72);
+          /*sprintf(publishString,"{\"Hours\": %u, \"Minutes\": %u, \"Seconds\": %u}",hours,min,sec);*/
+
 }
 
+void jsonPublish (int WallTemp , int RemoteId_1, int Temp_1, int RemoteId_2, int Temp_2) {
+  sprintf(publishString,"{\"WallTemp\": \"70\",\"RSensors\":[{\"RemoteId\": \"%d\",\"Temp\":\"%d\",\"BattStatus\": \"true\"},{\"RemoteId\": \"%d\",\"Temp\": \"%d\",\"BattStatus\": \"false\"}]}",
+      RemoteId_1, Temp_1, RemoteId_2, Temp_2);
+  Particle.publish("Data",publishString);
+}
 // might need this for interupts ? potentially.
 /*void connect() {
   if(Particle.connected() == false){
