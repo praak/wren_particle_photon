@@ -64,6 +64,7 @@ int RemoteId_1;
 int Temp_1;
 int RemoteId_2;
 int Temp_2;
+int heater = D6;
 
 /*int remoteTemp(int posVal, int negVal)
 {
@@ -79,6 +80,7 @@ void setup() {
   Particle.variable("Data", publishString);
   Serial.begin(9600);
   Serial1.begin(9600);
+  pinMode(heater, OUTPUT);
   /*Serial.println("beginning of setup");*/
   /*delay(5000);*/
   display.begin();
@@ -123,7 +125,7 @@ unsigned long now = millis();
   display.setTextSize(1);
   display.println(tempC);
   display.println(cc);
-
+  digitalWrite(heater, HIGH);
   /*int RemoteData = display.println(Serial1.readStringUntil('\n'));
   int remoteTemp = display.println(Serial1.readStringUntil('\n'));*/
 
@@ -165,29 +167,7 @@ unsigned long now = millis();
       // Find the next command in input string
       command = strtok(0, "\n");
   }
-  /*int ndex = 0;*/
-  /*int myInts[2];
-  int done = 0;*/
-// this may be alright now, but wont be able to work the best when reading with slow and such.
-// basically it might not be able to take all the values in one run. . not sure.
-  /*while (done = 0)
-  {
-    if (Serial1.readStringUntil('\n').toInt() == 0)
-    {
-      myInts[0] = Serial1.readStringUntil('\n').toInt();
-      myInts[1] = Serial1.readStringUntil('\n').toInt();
-      done = 1;
-    }
-    else
-    {
-      done = 0;
-    }
-  }*/
-  /*int tempFF = remoteTemp(myInts[0],myInts[1]);*/
-  /*Serial.println(myInts[0]);
-  Serial.println(myInts[1]);*/
-  /*Serial.println(tempFF);*/
-  /*display.println(tempFF);*/
+
   delay(500);
   display.display();
  jsonPublish(cc, RemoteId_1, Temp_1, RemoteId_2, Temp_2);
@@ -199,6 +179,7 @@ void jsonPublish (int WallTemp , int RemoteId_1, int Temp_1, int RemoteId_2, int
   sprintf(publishString,"{\"WallTemp\": \"%d\",\"RSensors\":[{\"RemoteId\": \"%d\",\"Temp\":\"%d\",\"BattStatus\": \"true\"},{\"RemoteId\": \"%d\",\"Temp\": \"%d\",\"BattStatus\": \"false\"}]}",
       WallTemp, RemoteId_1, Temp_1, RemoteId_2, Temp_2);
   Particle.publish("Data",publishString);
+  Particle.publish("wall_temp",WallTemp);
 }
 // might need this for interupts ? potentially.
 /*void connect() {
