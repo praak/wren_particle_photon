@@ -27,6 +27,8 @@
 // Adafruit_PCD8544 display = Adafruit_PCD8544(SS, D2, D3);
 Adafruit_PCD8544 display = Adafruit_PCD8544(A0, A2, A1);
 
+// Calculate based on max input size expected for one command
+#define INPUT_SIZE 10
 #define NUMFLAKES 10
 #define XPOS 0
 #define YPOS 1
@@ -58,8 +60,12 @@ Hdc1080 hdc = Hdc1080();
 int count;
 unsigned long lastTime = 0UL;
 char publishString[256];
+int RemoteId_1;
+int Temp_1;
+int RemoteId_2;
+int Temp_2;
 
-int remoteTemp(int posVal, int negVal)
+/*int remoteTemp(int posVal, int negVal)
 {
   posVal = posVal * 0.00322265625;
   negVal = negVal * 0.00322265625;
@@ -67,7 +73,7 @@ int remoteTemp(int posVal, int negVal)
   int degreesC = -5.3546*voltage*voltage + 31.279*voltage + 21.531;
   int degreesF = degreesC * (9.0/5.0) + 32.0;
   return degreesF;
-}
+}*/
 
 void setup() {
   Particle.variable("Data", publishString);
@@ -105,7 +111,7 @@ unsigned long now = millis();
 
   float tempC = hdc.getTemperatureFahrenheit();
   int cc = int(tempC);
-  Particle.publish("wall_temp",Serial1.readStringUntil('\n'));
+  /*Particle.publish("wall_temp",Serial1.readStringUntil('\n'));*/
   Serial.flush();
   /*Serial.println(tempF);*/
   delay(500);
@@ -117,7 +123,48 @@ unsigned long now = millis();
   display.setTextSize(1);
   display.println(tempC);
   display.println(cc);
-  display.println(Serial1.readStringUntil('\n'));
+
+  /*int RemoteData = display.println(Serial1.readStringUntil('\n'));
+  int remoteTemp = display.println(Serial1.readStringUntil('\n'));*/
+
+  // Get next command from Serial (add 1 for final 0)
+  int RemoteId;
+  int remoteTemp;
+  char input[INPUT_SIZE + 1];
+  byte size = Serial1.readBytes(input, INPUT_SIZE);
+  // Add the final 0 to end the C string
+  input[size] = 0;
+
+  // Read each command pair
+  char* command = strtok(input, " \n");
+  while (command != 0)
+  {
+      // Split the command in two values
+      char* separator = strchr(command, ':');
+      if (separator != 0)
+      {
+          // Actually split the string in 2: replace ':' with 0
+          *separator = 0;
+          RemoteId = atoi(command);
+          ++separator;
+          remoteTemp = atoi(separator);
+          if(RemoteId == 1)
+          {
+            RemoteId_1 = 1;
+            Temp_1 = remoteTemp;
+          }
+          if(RemoteId == 2)
+          {
+              RemoteId_2 = 2;
+              Temp_2 = remoteTemp;
+          }
+          display.print(RemoteId);
+          display.println(remoteTemp);
+          // Do something with servoId and position
+      }
+      // Find the next command in input string
+      command = strtok(0, "\n");
+  }
   /*int ndex = 0;*/
   /*int myInts[2];
   int done = 0;*/
@@ -143,15 +190,14 @@ unsigned long now = millis();
   /*display.println(tempFF);*/
   delay(500);
   display.display();
-
-  jsonPublish(72,1,744,2,72);
+ jsonPublish(cc, RemoteId_1, Temp_1, RemoteId_2, Temp_2);
+  /*jsonPublish(72,1,744,2,72);*/
           /*sprintf(publishString,"{\"Hours\": %u, \"Minutes\": %u, \"Seconds\": %u}",hours,min,sec);*/
 
 }
-
 void jsonPublish (int WallTemp , int RemoteId_1, int Temp_1, int RemoteId_2, int Temp_2) {
-  sprintf(publishString,"{\"WallTemp\": \"70\",\"RSensors\":[{\"RemoteId\": \"%d\",\"Temp\":\"%d\",\"BattStatus\": \"true\"},{\"RemoteId\": \"%d\",\"Temp\": \"%d\",\"BattStatus\": \"false\"}]}",
-      RemoteId_1, Temp_1, RemoteId_2, Temp_2);
+  sprintf(publishString,"{\"WallTemp\": \"%d\",\"RSensors\":[{\"RemoteId\": \"%d\",\"Temp\":\"%d\",\"BattStatus\": \"true\"},{\"RemoteId\": \"%d\",\"Temp\": \"%d\",\"BattStatus\": \"false\"}]}",
+      WallTemp, RemoteId_1, Temp_1, RemoteId_2, Temp_2);
   Particle.publish("Data",publishString);
 }
 // might need this for interupts ? potentially.
