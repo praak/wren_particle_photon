@@ -67,7 +67,7 @@ int Temp_2;
 int heater = D6;
 int airCon = D5;
 int fan = D3;
-int currentTemp;
+int currentTemp = 72;
 int HVACcontrol = 0;
 const int acOn = 1;
 const int heatOn = 2;
@@ -125,7 +125,6 @@ unsigned long now = millis();
   display.setTextSize(1);
 //  display.println(tempC);
   display.println(tempWall);
-  display.println(currentTemp);
   /*int RemoteData = display.println(Serial1.readStringUntil('\n'));
   int remoteTemp = display.println(Serial1.readStringUntil('\n'));*/
 
@@ -179,6 +178,7 @@ unsigned long now = millis();
       {
         digitalWrite(airCon, HIGH);
         digitalWrite(fan, HIGH);
+        display.print("AC on - ");
       }
       else
       {
@@ -192,6 +192,7 @@ unsigned long now = millis();
       {
         digitalWrite(heater, HIGH);
         digitalWrite(fan, HIGH);
+        display.print("Heat On - ");
       }
       else
       {
@@ -205,6 +206,7 @@ unsigned long now = millis();
       digitalWrite(heater, LOW);
       digitalWrite(airCon, LOW);
       digitalWrite(fan, LOW);
+      display.print("Idle - ");
         if (currentTemp >= setTemp+2)
         {
           HVACcontrol = acOn;
@@ -220,6 +222,7 @@ unsigned long now = millis();
       }
     break;
   }
+  display.println(currentTemp);
   delay(500);
   display.display();
  jsonPublish(tempWall, RemoteId_1, Temp_1, RemoteId_2, Temp_2);
