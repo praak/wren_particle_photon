@@ -71,23 +71,35 @@ int currentTemp = 72;
 int HVACcontrol = 0;
 const int acOn = 1;
 const int heatOn = 2;
-int setTemp = 72;
 
+
+int currentSetTemp = 72;
+// instantiate temp, later grab from EEPROM
+
+// is used by phone app to set temp
+int setCurrentSetTemperature(String temp) {
+// TODO: change to store in EEPROM
+currentSetTemp = temp.toInt();
+return currentSetTemp;
+}
+// Called by the phone app. TODO: Will have to send to app via the jsonPublish
+int getCurrentSetTemperature() {
+// TODO: change to get from EEPROM
+return currentSetTemp;
+}
 
 void setup() {
+  Particle.function("setTemp",setCurrentSetTemperature);
   Particle.variable("Data", publishString);
   Serial.begin(9600);
   Serial1.begin(9600);
   pinMode(heater, OUTPUT);
   pinMode(airCon, OUTPUT);
   pinMode(fan, OUTPUT);
-  /*Serial.println("beginning of setup");*/
-  /*delay(5000);*/
   display.begin();
   //init done
 
   display.setContrast(65);
-  /*delay(2000);*/
   display.display();
   display.clearDisplay();
 
@@ -100,13 +112,10 @@ void setup() {
 
   hdc.begin(0x40);
   delay(15);  // giving delay time for the chip to initialize
-
-  /*Serial.println("end of setup");*/
   count=0;
 }
 
 void loop() {
-  /*Serial.println("beginning of loop");*/
 
 unsigned long now = millis();
 // Working code to get temp and print on display
@@ -115,7 +124,6 @@ unsigned long now = millis();
   int tempWall = int(tempC);
   /*Particle.publish("wall_temp",Serial1.readStringUntil('\n'));*/
   Serial.flush();
-  /*Serial.println(tempF);*/
   delay(500);
   display.clearDisplay();
   display.setTextSize(1);
@@ -123,8 +131,8 @@ unsigned long now = millis();
   display.setCursor(15,0);
   display.println("WREN");
   display.setTextSize(1);
-//  display.println(tempC);
   display.println(tempWall);
+  display.println(getCurrentSetTemperature());
   /*int RemoteData = display.println(Serial1.readStringUntil('\n'));
   int remoteTemp = display.println(Serial1.readStringUntil('\n'));*/
 
@@ -174,7 +182,7 @@ unsigned long now = millis();
   switch (HVACcontrol) {
     case acOn: // Turns on the AC
     {
-      if (currentTemp > setTemp)
+      if (currentTemp > currentSetTemp)
       {
         digitalWrite(airCon, HIGH);
         digitalWrite(fan, HIGH);
@@ -188,7 +196,7 @@ unsigned long now = millis();
       break;
     case heatOn: // Turns on the Heat
     {
-      if (currentTemp < setTemp)
+      if (currentTemp < currentSetTemp)
       {
         digitalWrite(heater, HIGH);
         digitalWrite(fan, HIGH);
@@ -207,11 +215,11 @@ unsigned long now = millis();
       digitalWrite(airCon, LOW);
       digitalWrite(fan, LOW);
       display.print("Idle - ");
-        if (currentTemp >= setTemp+2)
+        if (currentTemp >= currentSetTemp+2)
         {
           HVACcontrol = acOn;
         }
-        else if (currentTemp <= setTemp-2)
+        else if (currentTemp <= currentSetTemp-2)
         {
           HVACcontrol = heatOn;
         }
