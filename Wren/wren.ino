@@ -128,11 +128,13 @@ unsigned long now = millis();
   display.clearDisplay();
   display.setTextSize(1);
   display.setTextColor(BLACK);
-  display.setCursor(15,0);
+  display.setCursor(31,0);
   display.println("WREN");
-  display.setTextSize(1);
-  display.println(tempWall);
+  display.setTextSize(2);
+  display.setCursor(31,8);
+  //display.println(tempWall);
   display.println(getCurrentSetTemperature());
+  display.setTextSize(1);
   /*int RemoteData = display.println(Serial1.readStringUntil('\n'));
   int remoteTemp = display.println(Serial1.readStringUntil('\n'));*/
 
