@@ -65,22 +65,22 @@ int Temp_1;
 int RemoteId_2;
 int Temp_2;
 int heater = D6;
+int airCon = D5;
+int fan = D3;
+int currentTemp;
+int HVACcontrol = 0;
+const int acOn = 1;
+const int heatOn = 2;
+int setTemp = 72;
 
-/*int remoteTemp(int posVal, int negVal)
-{
-  posVal = posVal * 0.00322265625;
-  negVal = negVal * 0.00322265625;
-  int voltage = posVal - negVal;
-  int degreesC = -5.3546*voltage*voltage + 31.279*voltage + 21.531;
-  int degreesF = degreesC * (9.0/5.0) + 32.0;
-  return degreesF;
-}*/
 
 void setup() {
   Particle.variable("Data", publishString);
   Serial.begin(9600);
   Serial1.begin(9600);
   pinMode(heater, OUTPUT);
+  pinMode(airCon, OUTPUT);
+  pinMode(fan, OUTPUT);
   /*Serial.println("beginning of setup");*/
   /*delay(5000);*/
   display.begin();
@@ -112,7 +112,7 @@ unsigned long now = millis();
 // Working code to get temp and print on display
 
   float tempC = hdc.getTemperatureFahrenheit();
-  int cc = int(tempC);
+  int tempWall = int(tempC);
   /*Particle.publish("wall_temp",Serial1.readStringUntil('\n'));*/
   Serial.flush();
   /*Serial.println(tempF);*/
@@ -123,9 +123,9 @@ unsigned long now = millis();
   display.setCursor(15,0);
   display.println("WREN");
   display.setTextSize(1);
-  display.println(tempC);
-  display.println(cc);
-  digitalWrite(heater, HIGH);
+//  display.println(tempC);
+  display.println(tempWall);
+  display.println(currentTemp);
   /*int RemoteData = display.println(Serial1.readStringUntil('\n'));
   int remoteTemp = display.println(Serial1.readStringUntil('\n'));*/
 
@@ -138,18 +138,22 @@ unsigned long now = millis();
   input[size] = 0;
 
   // Read each command pair
-  char* command = strtok(input, " \n");
-  while (command != 0)
+  // char *strtok(char *str, const char *delim) breaks string str into a series of tokens using the delimiter delim
+  // Separates remote sensor data into respective units
+  char* sensorData = strtok(input, " \n");
+  while (sensorData != 0)
   {
-      // Split the command in two values
-      char* separator = strchr(command, ':');
+      // Split the remote sensor data in two values
+      char* separator = strchr(sensorData, ':');
       if (separator != 0)
       {
           // Actually split the string in 2: replace ':' with 0
           *separator = 0;
-          RemoteId = atoi(command);
+          // atoi() is a C command that converts a string into an integer
+          RemoteId = atoi(sensorData);
           ++separator;
           remoteTemp = atoi(separator);
+          // Identifies which sensor it is and sets the input temperature to the appropriate variable
           if(RemoteId == 1)
           {
             RemoteId_1 = 1;
@@ -162,15 +166,63 @@ unsigned long now = millis();
           }
           display.print(RemoteId);
           display.println(remoteTemp);
-          // Do something with servoId and position
       }
-      // Find the next command in input string
-      command = strtok(0, "\n");
+      // Find the next set of sensorData in input string
+      sensorData = strtok(0, "\n");
   }
-
+  currentTemp = (Temp_1+Temp_2+tempWall)/3;
+  // Case statements for determining whether or not to Turn on the AC/Heat/Fan
+  switch (HVACcontrol) {
+    case acOn: // Turns on the AC
+    {
+      if (currentTemp > setTemp)
+      {
+        digitalWrite(airCon, HIGH);
+        digitalWrite(fan, HIGH);
+      }
+      else
+      {
+        HVACcontrol = 0;
+      }
+    }
+      break;
+    case heatOn: // Turns on the Heat
+    {
+      if (currentTemp < setTemp)
+      {
+        digitalWrite(heater, HIGH);
+        digitalWrite(fan, HIGH);
+      }
+      else
+      {
+        HVACcontrol = 0;
+      }
+    }
+      break;
+    // Nothing is on by default, turns heater/AC/fan off
+    default:
+    {
+      digitalWrite(heater, LOW);
+      digitalWrite(airCon, LOW);
+      digitalWrite(fan, LOW);
+        if (currentTemp >= setTemp+2)
+        {
+          HVACcontrol = acOn;
+        }
+        else if (currentTemp <= setTemp-2)
+        {
+          HVACcontrol = heatOn;
+        }
+        else
+        {
+          HVACcontrol = 0;
+        }
+      }
+    break;
+  }
   delay(500);
   display.display();
- jsonPublish(cc, RemoteId_1, Temp_1, RemoteId_2, Temp_2);
+ jsonPublish(tempWall, RemoteId_1, Temp_1, RemoteId_2, Temp_2);
   /*jsonPublish(72,1,744,2,72);*/
           /*sprintf(publishString,"{\"Hours\": %u, \"Minutes\": %u, \"Seconds\": %u}",hours,min,sec);*/
 
