@@ -67,11 +67,12 @@ int Temp_2;
 int heater = D6;
 int airCon = D5;
 int fan = D3;
+int tempUpButton = D4;
+int tempDownButton = D2;
 int currentTemp = 72;
 int HVACcontrol = 0;
 const int acOn = 1;
 const int heatOn = 2;
-
 
 int currentSetTemp = 72;
 // instantiate temp, later grab from EEPROM
@@ -96,6 +97,8 @@ void setup() {
   pinMode(heater, OUTPUT);
   pinMode(airCon, OUTPUT);
   pinMode(fan, OUTPUT);
+  pinMode(tempUpButton, INPUT);
+  pinMode(tempDownButton, INPUT);
   display.begin();
   //init done
 
@@ -133,8 +136,29 @@ unsigned long now = millis();
   display.setTextSize(2);
   display.setCursor(31,8);
   //display.println(tempWall);
+
+    if (digitalRead(tempUpButton) == HIGH && digitalRead(tempDownButton) == HIGH)
+    {
+      // do nothing, maybe settings?
+    }
+    else if (digitalRead(tempUpButton) == HIGH)
+    {
+      // if up button is pressed, then increase temp by 1
+      currentSetTemp = getCurrentSetTemperature() + 1;
+      setCurrentSetTemperature(String(currentSetTemp));
+      Particle.publish("setTemp",currentSetTemp);
+    }
+    else if (digitalRead(tempDownButton) == HIGH)
+    {
+      // if down button is pressed, then decrease temp by 1
+      currentSetTemp = getCurrentSetTemperature() - 1;
+      setCurrentSetTemperature(String(currentSetTemp));
+      Particle.publish("setTemp",currentSetTemp);
+    }
   display.println(getCurrentSetTemperature());
   display.setTextSize(1);
+  display.print(digitalRead(tempDownButton));
+  display.println(digitalRead(tempUpButton));
   /*int RemoteData = display.println(Serial1.readStringUntil('\n'));
   int remoteTemp = display.println(Serial1.readStringUntil('\n'));*/
 
@@ -179,7 +203,7 @@ unsigned long now = millis();
       // Find the next set of sensorData in input string
       sensorData = strtok(0, "\n");
   }
-  currentTemp = (Temp_1+Temp_2+tempWall)/3;
+  currentTemp = (Temp_1+Temp_2)/2; // Removed wall temp sensor (+tempWall)
   // Case statements for determining whether or not to Turn on the AC/Heat/Fan
   switch (HVACcontrol) {
     case acOn: // Turns on the AC
@@ -215,7 +239,7 @@ unsigned long now = millis();
     {
       digitalWrite(heater, LOW);
       digitalWrite(airCon, LOW);
-      digitalWrite(fan, LOW);
+      //digitalWrite(fan, LOW);
       display.print("Idle - ");
         if (currentTemp >= currentSetTemp+2)
         {
@@ -233,7 +257,7 @@ unsigned long now = millis();
     break;
   }
   display.println(currentTemp);
-  delay(500);
+  //delay(500);
   display.display();
  jsonPublish(tempWall, RemoteId_1, Temp_1, RemoteId_2, Temp_2);
  dbPublish(tempWall, RemoteId_1, Temp_1, RemoteId_2, Temp_2);
@@ -250,6 +274,7 @@ void jsonPublish (int WallTemp , int RemoteId_1, int Temp_1, int RemoteId_2, int
       WallTemp, RemoteId_1, Temp_1, RemoteId_2, Temp_2);
   Particle.publish("Data",publishString);
   Particle.publish("wall_temp",WallTemp);
+  Particle.publish("setTemp",currentSetTemp);
 }
 
 /**
