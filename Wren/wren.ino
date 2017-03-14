@@ -236,16 +236,39 @@ unsigned long now = millis();
   delay(500);
   display.display();
  jsonPublish(tempWall, RemoteId_1, Temp_1, RemoteId_2, Temp_2);
+ dbPublish(tempWall, RemoteId_1, Temp_1, RemoteId_2, Temp_2);
   /*jsonPublish(72,1,744,2,72);*/
           /*sprintf(publishString,"{\"Hours\": %u, \"Minutes\": %u, \"Seconds\": %u}",hours,min,sec);*/
 
 }
+
+/**
+ Use this function to publish the json string necessary for the app
+ */
 void jsonPublish (int WallTemp , int RemoteId_1, int Temp_1, int RemoteId_2, int Temp_2) {
   sprintf(publishString,"{\"WallTemp\": \"%d\",\"RSensors\":[{\"RemoteId\": \"%d\",\"Temp\":\"%d\",\"BattStatus\": \"true\"},{\"RemoteId\": \"%d\",\"Temp\": \"%d\",\"BattStatus\": \"false\"}]}",
       WallTemp, RemoteId_1, Temp_1, RemoteId_2, Temp_2);
   Particle.publish("Data",publishString);
   Particle.publish("wall_temp",WallTemp);
 }
+
+/**
+ Use this function to publish data to the database
+ TODO: see if there is an easier way to simplify the database inserts such that we can merge the json and db publish functions.
+ */
+void dbPublish (int WallTemp , int RemoteId_1, int Temp_1, int RemoteId_2, int Temp_2) {
+  sprintf(publishString,"{\"WallTemp\": \"70\",\"RemoteId1\": \"%d\",\"Temp1\":\"%d\",\"BattStatus1\": \"true\",\"RemoteId2\": \"%d\",\"Temp2\": \"%d\",\"BattStatus2\": \"false\"}",
+      RemoteId_1, Temp_1, RemoteId_2, Temp_2);
+  // Use 'mongodbTest' event name to publish to a test collection *Don't use this event unless testing
+  // Particle.publish("mongodbTest",publishString);
+
+  /** Use 'mongoDB' event name to publish to the sensor data collection,
+    * browse to https://particle.charlesscholle.com/?hour=0&minute=0&second=15
+    * to view data published in the last 15 seconds
+    */
+  Particle.publish("mongoDB",publishString);
+}
+
 // might need this for interupts ? potentially.
 /*void connect() {
   if(Particle.connected() == false){
