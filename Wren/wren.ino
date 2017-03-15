@@ -60,6 +60,7 @@ Hdc1080 hdc = Hdc1080();
 int count;
 unsigned long lastTime = 0UL;
 char publishString[256];
+int WallTemp;
 int RemoteId_1;
 int Temp_1;
 int RemoteId_2;
@@ -73,8 +74,8 @@ int currentTemp = 72;
 int HVACcontrol = 0;
 const int acOn = 1;
 const int heatOn = 2;
-bool BattStatus1 = false;
-bool BattStatus2 = false;
+String BattStatus1 = " ";
+String BattStatus2 = " ";
 int BattCheck1 = 10;
 int BattCheck2 = 10;
 
@@ -93,6 +94,10 @@ int getCurrentSetTemperature() {
 return currentSetTemp;
 }
 
+int isrTimer = 0;
+      // if up button is pressed, then increase temp by 1
+
+
 void setup() {
   Particle.function("setTemp",setCurrentSetTemperature);
   Particle.variable("Data", publishString);
@@ -103,6 +108,8 @@ void setup() {
   pinMode(fan, OUTPUT);
   pinMode(tempUpButton, INPUT);
   pinMode(tempDownButton, INPUT);
+  attachInterrupt(digitalPinToInterrupt(tempUpButton), isrTempUp, RISING);
+  attachInterrupt(digitalPinToInterrupt(tempDownButton), isrTempDown, RISING);
   display.begin();
   //init done
 
@@ -128,7 +135,7 @@ unsigned long now = millis();
 // Working code to get temp and print on display
 
   float tempC = hdc.getTemperatureFahrenheit();
-  int tempWall = int(tempC);
+  WallTemp = int(tempC);
   /*Particle.publish("wall_temp",Serial1.readStringUntil('\n'));*/
   Serial.flush();
   //delay(500);
@@ -141,24 +148,6 @@ unsigned long now = millis();
   display.setCursor(31,8);
   //display.println(tempWall);
 
-    if (digitalRead(tempUpButton) == HIGH && digitalRead(tempDownButton) == HIGH)
-    {
-      // do nothing, maybe settings?
-    }
-    else if (digitalRead(tempUpButton) == HIGH)
-    {
-      // if up button is pressed, then increase temp by 1
-      currentSetTemp = getCurrentSetTemperature() + 1;
-      setCurrentSetTemperature(String(currentSetTemp));
-      Particle.publish("setTemp",currentSetTemp);
-    }
-    else if (digitalRead(tempDownButton) == HIGH)
-    {
-      // if down button is pressed, then decrease temp by 1
-      currentSetTemp = getCurrentSetTemperature() - 1;
-      setCurrentSetTemperature(String(currentSetTemp));
-      Particle.publish("setTemp",currentSetTemp);
-    }
   display.println(getCurrentSetTemperature());
   display.setTextSize(1);
   display.print(digitalRead(tempDownButton));
@@ -212,38 +201,43 @@ unsigned long now = millis();
 
   if (BattCheck1 <= 10)
   {
-  BattStatus1 = TRUE;
+  BattStatus1 = "true";
   BattCheck1 = BattCheck1 + 1;
   }
   else
   {
-    BattStatus1 = false;
+    BattStatus1 = "false";
   }
   if (BattCheck2 <= 10)
   {
-    BattStatus2 = TRUE;
+    BattStatus2 = "true";
     BattCheck2 = BattCheck2 + 1;
   }
   else
   {
-    BattStatus2 = false;
+    BattStatus2 = "false";
   }
-  if (BattStatus1 == TRUE && BattStatus2 == TRUE)
+  if (BattStatus1 == "true" && BattStatus2 == "true")
   {
     currentTemp = (Temp_1+Temp_2)/2; // Removed wall temp sensor (+tempWall)
   }
-  else if (BattStatus1 == TRUE)
+  else if (BattStatus1 == "true")
   {
     currentTemp = Temp_1;
-      display.println("2 Dead");
+    Temp_2 = 999;
+    display.println("2 Dead");
   }
-  else if (BattStatus2 == TRUE)
+  else if (BattStatus2 == "true")
   {
     currentTemp = Temp_2;
-      display.println("1 Dead");
+    Temp_1 = 999;
+    display.println("1 Dead");
   }
   else
   {
+    currentTemp = WallTemp;
+    Temp_1 = 999;
+    Temp_2 = 999;
     display.println("Both Dead");
   }
   // Case statements for determining whether or not to Turn on the AC/Heat/Fan
@@ -300,23 +294,42 @@ unsigned long now = millis();
   }
   display.println(currentTemp);
 //  delay(500);
+  isrTimer = 0;
   display.display();
- jsonPublish(tempWall, RemoteId_1, Temp_1, BattStatus1, RemoteId_2, Temp_2, BattStatus2);
- /*dbPublish(tempWall, RemoteId_1, Temp_1, BattStatus1, RemoteId_2, Temp_2, BattStatus2);*/
+  String Temp_1String = Temp_1 == 999? "--": String(Temp_1);
+  String Temp_2String = Temp_2 == 999? "--": String(Temp_2);
+ jsonPublish(currentSetTemp, RemoteId_1, Temp_1String, BattStatus1, RemoteId_2, Temp_2String, BattStatus2);
+ dbPublish(currentSetTemp, RemoteId_1, Temp_1String, BattStatus1, RemoteId_2, Temp_2String, BattStatus2);
   /*jsonPublish(72,1,744,2,72);*/
           /*sprintf(publishString,"{\"Hours\": %u, \"Minutes\": %u, \"Seconds\": %u}",hours,min,sec);*/
 
 }
-
+void isrTempUp()
+{
+  if ((isrTimer%500) == 0)
+  {
+  currentSetTemp = currentSetTemp + 1;
+  isrTimer = isrTimer + 1;
+  }
+}
+      // if down button is pressed, then decrease temp by 1
+void isrTempDown()
+{
+  if ((isrTimer%500) == 0)
+  {
+  currentSetTemp = currentSetTemp - 1;
+  isrTimer = isrTimer + 1;
+  }
+}
 /**
  Use this function to publish the json string necessary for the app
  */
-void jsonPublish (int WallTemp , int RemoteId_1, int Temp_1, bool BattStatus1, int RemoteId_2, int Temp_2, bool BattStatus2) {
-  sprintf(publishString,"{\"WallTemp\": \"%d\",\"RSensors\":[{\"RemoteId\": \"%d\",\"Temp\":\"%d\",\"BattStatus\": \"%b\"},{\"RemoteId\": \"%d\",\"Temp\": \"%d\",\"BattStatus\": \"%b\"}]}",
-      WallTemp, RemoteId_1, Temp_1, BattStatus1, RemoteId_2, Temp_2, BattStatus2);
+void jsonPublish (int WallTemp , int RemoteId_1, String Temp_1String, String BattStatus1, int RemoteId_2, String Temp_2String, String BattStatus2) {
+  sprintf(publishString,"{\"WallTemp\": \"%d\",\"RSensors\":[{\"RemoteId\": \"%d\",\"Temp\":\"%s\",\"BattStatus\": \"%s\"},{\"RemoteId\": \"%d\",\"Temp\": \"%s\",\"BattStatus\": \"%s\"}]}",
+      WallTemp, RemoteId_1, Temp_1String.c_str(), BattStatus1.c_str(), RemoteId_2, Temp_2String.c_str(), BattStatus2.c_str());
   Particle.publish("Data",publishString);
-  Particle.publish("wall_temp",WallTemp);
-  Particle.publish("setTemp",currentSetTemp);
+  Particle.publish("wall_temp",String(WallTemp));
+  Particle.publish("setTemp",String(getCurrentSetTemperature()));
   //Particle.publish("mongoDB",publishString);
   /*Particle.publish("mongodbTest",publishString);*/
 }
@@ -325,9 +338,9 @@ void jsonPublish (int WallTemp , int RemoteId_1, int Temp_1, bool BattStatus1, i
  Use this function to publish data to the database
  TODO: see if there is an easier way to simplify the database inserts such that we can merge the json and db publish functions.
  */
-void dbPublish (int WallTemp , int RemoteId_1, int Temp_1, bool BattStatus1, int RemoteId_2, int Temp_2, bool BattStatus2) {
-  sprintf(publishString,"{\"WallTemp\": \"%d\",\"RemoteId1\": \"%d\",\"Temp1\":\"%d\",\"BattStatus1\": \"%b\",\"RemoteId2\": \"%d\",\"Temp2\": \"%d\",\"BattStatus2\": \"%b\"}",
-      RemoteId_1, Temp_1, RemoteId_2, Temp_2);
+void dbPublish (int WallTemp , int RemoteId_1, String Temp_1String, String BattStatus1, int RemoteId_2, String Temp_2String, String BattStatus2) {
+  sprintf(publishString,"{\"WallTemp\": \"%d\",\"RemoteId1\": \"%d\",\"Temp1\":\"%s\",\"BattStatus1\": \"%s\",\"RemoteId2\": \"%d\",\"Temp2\": \"%s\",\"BattStatus2\": \"%s\"}",
+      WallTemp, RemoteId_1, Temp_1String.c_str(), BattStatus1.c_str(), RemoteId_2, Temp_2String.c_str(), BattStatus2.c_str());
   // Use 'mongodbTest' event name to publish to a test collection *Don't use this event unless testing
   /*Particle.publish("mongodbTest",publishString);*/
 
@@ -335,7 +348,7 @@ void dbPublish (int WallTemp , int RemoteId_1, int Temp_1, bool BattStatus1, int
     * browse to https://particle.charlesscholle.com/?hour=0&minute=0&second=15
     * to view data published in the last 15 seconds
     */
-  /*Particle.publish("mongoDB",publishString);*/
+  Particle.publish("mongoDB",publishString);
 }
 
 // might need this for interupts ? potentially.
