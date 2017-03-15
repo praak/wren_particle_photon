@@ -73,6 +73,10 @@ int currentTemp = 72;
 int HVACcontrol = 0;
 const int acOn = 1;
 const int heatOn = 2;
+bool BattStatus1 = false;
+bool BattStatus2 = false;
+int BattCheck1 = 10;
+int BattCheck2 = 10;
 
 int currentSetTemp = 72;
 // instantiate temp, later grab from EEPROM
@@ -127,7 +131,7 @@ unsigned long now = millis();
   int tempWall = int(tempC);
   /*Particle.publish("wall_temp",Serial1.readStringUntil('\n'));*/
   Serial.flush();
-  delay(500);
+  //delay(500);
   display.clearDisplay();
   display.setTextSize(1);
   display.setTextColor(BLACK);
@@ -191,11 +195,13 @@ unsigned long now = millis();
           {
             RemoteId_1 = 1;
             Temp_1 = remoteTemp;
+            BattCheck1 = 0;
           }
           if(RemoteId == 2)
           {
               RemoteId_2 = 2;
               Temp_2 = remoteTemp;
+              BattCheck2 = 0;
           }
           display.print(RemoteId);
           display.println(remoteTemp);
@@ -203,7 +209,43 @@ unsigned long now = millis();
       // Find the next set of sensorData in input string
       sensorData = strtok(0, "\n");
   }
-  currentTemp = (Temp_1+Temp_2)/2; // Removed wall temp sensor (+tempWall)
+
+  if (BattCheck1 <= 10)
+  {
+  BattStatus1 = TRUE;
+  BattCheck1 = BattCheck1 + 1;
+  }
+  else
+  {
+    BattStatus1 = false;
+  }
+  if (BattCheck2 <= 10)
+  {
+    BattStatus2 = TRUE;
+    BattCheck2 = BattCheck2 + 1;
+  }
+  else
+  {
+    BattStatus2 = false;
+  }
+  if (BattStatus1 == TRUE && BattStatus2 == TRUE)
+  {
+    currentTemp = (Temp_1+Temp_2)/2; // Removed wall temp sensor (+tempWall)
+  }
+  else if (BattStatus1 == TRUE)
+  {
+    currentTemp = Temp_1;
+      display.println("2 Dead");
+  }
+  else if (BattStatus2 == TRUE)
+  {
+    currentTemp = Temp_2;
+      display.println("1 Dead");
+  }
+  else
+  {
+    display.println("Both Dead");
+  }
   // Case statements for determining whether or not to Turn on the AC/Heat/Fan
   switch (HVACcontrol) {
     case acOn: // Turns on the AC
@@ -257,10 +299,10 @@ unsigned long now = millis();
     break;
   }
   display.println(currentTemp);
-  //delay(500);
+//  delay(500);
   display.display();
- jsonPublish(tempWall, RemoteId_1, Temp_1, RemoteId_2, Temp_2);
- dbPublish(tempWall, RemoteId_1, Temp_1, RemoteId_2, Temp_2);
+ jsonPublish(tempWall, RemoteId_1, Temp_1, BattStatus1, RemoteId_2, Temp_2, BattStatus2);
+ /*dbPublish(tempWall, RemoteId_1, Temp_1, BattStatus1, RemoteId_2, Temp_2, BattStatus2);*/
   /*jsonPublish(72,1,744,2,72);*/
           /*sprintf(publishString,"{\"Hours\": %u, \"Minutes\": %u, \"Seconds\": %u}",hours,min,sec);*/
 
@@ -269,29 +311,31 @@ unsigned long now = millis();
 /**
  Use this function to publish the json string necessary for the app
  */
-void jsonPublish (int WallTemp , int RemoteId_1, int Temp_1, int RemoteId_2, int Temp_2) {
-  sprintf(publishString,"{\"WallTemp\": \"%d\",\"RSensors\":[{\"RemoteId\": \"%d\",\"Temp\":\"%d\",\"BattStatus\": \"true\"},{\"RemoteId\": \"%d\",\"Temp\": \"%d\",\"BattStatus\": \"false\"}]}",
-      WallTemp, RemoteId_1, Temp_1, RemoteId_2, Temp_2);
+void jsonPublish (int WallTemp , int RemoteId_1, int Temp_1, bool BattStatus1, int RemoteId_2, int Temp_2, bool BattStatus2) {
+  sprintf(publishString,"{\"WallTemp\": \"%d\",\"RSensors\":[{\"RemoteId\": \"%d\",\"Temp\":\"%d\",\"BattStatus\": \"%b\"},{\"RemoteId\": \"%d\",\"Temp\": \"%d\",\"BattStatus\": \"%b\"}]}",
+      WallTemp, RemoteId_1, Temp_1, BattStatus1, RemoteId_2, Temp_2, BattStatus2);
   Particle.publish("Data",publishString);
   Particle.publish("wall_temp",WallTemp);
   Particle.publish("setTemp",currentSetTemp);
+  //Particle.publish("mongoDB",publishString);
+  /*Particle.publish("mongodbTest",publishString);*/
 }
 
 /**
  Use this function to publish data to the database
  TODO: see if there is an easier way to simplify the database inserts such that we can merge the json and db publish functions.
  */
-void dbPublish (int WallTemp , int RemoteId_1, int Temp_1, int RemoteId_2, int Temp_2) {
-  sprintf(publishString,"{\"WallTemp\": \"70\",\"RemoteId1\": \"%d\",\"Temp1\":\"%d\",\"BattStatus1\": \"true\",\"RemoteId2\": \"%d\",\"Temp2\": \"%d\",\"BattStatus2\": \"false\"}",
+void dbPublish (int WallTemp , int RemoteId_1, int Temp_1, bool BattStatus1, int RemoteId_2, int Temp_2, bool BattStatus2) {
+  sprintf(publishString,"{\"WallTemp\": \"%d\",\"RemoteId1\": \"%d\",\"Temp1\":\"%d\",\"BattStatus1\": \"%b\",\"RemoteId2\": \"%d\",\"Temp2\": \"%d\",\"BattStatus2\": \"%b\"}",
       RemoteId_1, Temp_1, RemoteId_2, Temp_2);
   // Use 'mongodbTest' event name to publish to a test collection *Don't use this event unless testing
-  // Particle.publish("mongodbTest",publishString);
+  /*Particle.publish("mongodbTest",publishString);*/
 
   /** Use 'mongoDB' event name to publish to the sensor data collection,
     * browse to https://particle.charlesscholle.com/?hour=0&minute=0&second=15
     * to view data published in the last 15 seconds
     */
-  Particle.publish("mongoDB",publishString);
+  /*Particle.publish("mongoDB",publishString);*/
 }
 
 // might need this for interupts ? potentially.
