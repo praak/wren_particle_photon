@@ -76,12 +76,95 @@ const int acOn = 1;
 const int heatOn = 2;
 String BattStatus1 = " ";
 String BattStatus2 = " ";
-int BattCheck1 = 10;
-int BattCheck2 = 10;
+String Temp_1String;
+String Temp_2String;
+String statusHVAC = "Idle - ";
+String sensorStatus;
+int BattCheck1 = 15;
+int BattCheck2 = 15;
+
+void publishDbJson()
+{
+ jsonPublish(WallTemp, RemoteId_1, Temp_1String, BattStatus1, RemoteId_2, Temp_2String, BattStatus2);
+ dbPublish(WallTemp, RemoteId_1, Temp_1String, BattStatus1, RemoteId_2, Temp_2String, BattStatus2);
+}
+
+void displayChanged()
+{
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(BLACK);
+  display.setCursor(31,0);
+  display.println("WREN");
+  display.setTextSize(2);
+  display.setCursor(31,8);
+  display.println(getCurrentSetTemperature());
+  display.setTextSize(1);
+  /*display.print(digitalRead(tempDownButton));
+  display.println(digitalRead(tempUpButton));*/
+  display.print(statusHVAC);
+  display.println(currentTemp);
+  display.print(sensorStatus);
+  display.display();
+}
+
+void batteryCheck()
+{
+  if (BattCheck1 < 10)
+  {
+  BattStatus1 = "true";
+  BattCheck1 = BattCheck1 + 1;
+  }
+  else
+  {
+    BattStatus1 = "false";
+  }
+  if (BattCheck2 < 10)
+  {
+    BattStatus2 = "true";
+    BattCheck2 = BattCheck2 + 1;
+  }
+  else
+  {
+    BattStatus2 = "false";
+  }
+
+    if (BattStatus1 == "true" && BattStatus2 == "true")
+    {
+      currentTemp = (Temp_1+Temp_2)/2; // Removed wall temp sensor (+tempWall)
+      sensorStatus = "";
+    }
+    else if (BattStatus1 == "true")
+    {
+      currentTemp = Temp_1;
+      Temp_2 = 999;
+      sensorStatus = "2nd Sensor not responding";
+      /*display.println("2 Dead");*/
+    }
+    else if (BattStatus2 == "true")
+    {
+      currentTemp = Temp_2;
+      Temp_1 = 999;
+      sensorStatus = "1st Sensor not responding";
+      /*display.println("1 Dead");*/
+    }
+    else
+    {
+      currentTemp = WallTemp;
+      Temp_1 = 999;
+      Temp_2 = 999;
+      sensorStatus = "Both Sensors  not responding";
+      /*display.println("Both Dead");*/
+    }
+}
+
+// timers used to do things without worrying about how long the main loop takes
+Timer displayTimer(1000, displayChanged);
+Timer batteryCheckTimer(1000, batteryCheck);
+Timer jsonTimer(10000, publishDbJson);
 
 int currentSetTemp = 72;
 // instantiate temp, later grab from EEPROM
-
 // is used by phone app to set temp
 int setCurrentSetTemperature(String temp) {
 // TODO: change to store in EEPROM
@@ -99,6 +182,10 @@ int isrTimer = 0;
 
 
 void setup() {
+  // have to start the timers in order for them to function
+  jsonTimer.start();
+  batteryCheckTimer.start();
+  displayTimer.start();
   Particle.function("setTemp",setCurrentSetTemperature);
   Particle.variable("Data", publishString);
   Serial.begin(9600);
@@ -117,11 +204,11 @@ void setup() {
   display.display();
   display.clearDisplay();
 
-  display.setTextSize(1);
+  display.setTextSize(3);
   display.setTextColor(BLACK);
-  display.setCursor(0,0);
+  display.setCursor(31,0);
   display.println("WREN");
-  delay(200);
+  delay(1000);
   display.display();
 
   hdc.begin(0x40);
@@ -136,24 +223,7 @@ unsigned long now = millis();
 
   float tempC = hdc.getTemperatureFahrenheit();
   WallTemp = int(tempC);
-  /*Particle.publish("wall_temp",Serial1.readStringUntil('\n'));*/
   Serial.flush();
-  //delay(500);
-  display.clearDisplay();
-  display.setTextSize(1);
-  display.setTextColor(BLACK);
-  display.setCursor(31,0);
-  display.println("WREN");
-  display.setTextSize(2);
-  display.setCursor(31,8);
-  //display.println(tempWall);
-
-  display.println(getCurrentSetTemperature());
-  display.setTextSize(1);
-  display.print(digitalRead(tempDownButton));
-  display.println(digitalRead(tempUpButton));
-  /*int RemoteData = display.println(Serial1.readStringUntil('\n'));
-  int remoteTemp = display.println(Serial1.readStringUntil('\n'));*/
 
   // Get next command from Serial (add 1 for final 0)
   int RemoteId;
@@ -192,54 +262,14 @@ unsigned long now = millis();
               Temp_2 = remoteTemp;
               BattCheck2 = 0;
           }
-          display.print(RemoteId);
-          display.println(remoteTemp);
+          /*display.print(RemoteId);
+          display.println(remoteTemp);*/
       }
       // Find the next set of sensorData in input string
       sensorData = strtok(0, "\n");
   }
 
-  if (BattCheck1 <= 10)
-  {
-  BattStatus1 = "true";
-  BattCheck1 = BattCheck1 + 1;
-  }
-  else
-  {
-    BattStatus1 = "false";
-  }
-  if (BattCheck2 <= 10)
-  {
-    BattStatus2 = "true";
-    BattCheck2 = BattCheck2 + 1;
-  }
-  else
-  {
-    BattStatus2 = "false";
-  }
-  if (BattStatus1 == "true" && BattStatus2 == "true")
-  {
-    currentTemp = (Temp_1+Temp_2)/2; // Removed wall temp sensor (+tempWall)
-  }
-  else if (BattStatus1 == "true")
-  {
-    currentTemp = Temp_1;
-    Temp_2 = 999;
-    display.println("2 Dead");
-  }
-  else if (BattStatus2 == "true")
-  {
-    currentTemp = Temp_2;
-    Temp_1 = 999;
-    display.println("1 Dead");
-  }
-  else
-  {
-    currentTemp = WallTemp;
-    Temp_1 = 999;
-    Temp_2 = 999;
-    display.println("Both Dead");
-  }
+
   // Case statements for determining whether or not to Turn on the AC/Heat/Fan
   switch (HVACcontrol) {
     case acOn: // Turns on the AC
@@ -248,7 +278,8 @@ unsigned long now = millis();
       {
         digitalWrite(airCon, HIGH);
         digitalWrite(fan, HIGH);
-        display.print("AC on - ");
+        statusHVAC = "AC on - ";
+        /*display.print("AC on - ");*/
       }
       else
       {
@@ -262,7 +293,8 @@ unsigned long now = millis();
       {
         digitalWrite(heater, HIGH);
         digitalWrite(fan, HIGH);
-        display.print("Heat On - ");
+        statusHVAC = "Heat on - ";
+        /*display.print("Heat On - ");*/
       }
       else
       {
@@ -276,7 +308,8 @@ unsigned long now = millis();
       digitalWrite(heater, LOW);
       digitalWrite(airCon, LOW);
       //digitalWrite(fan, LOW);
-      display.print("Idle - ");
+      statusHVAC = "Idle - ";
+      /*display.print("Idle - ");*/
         if (currentTemp >= currentSetTemp+2)
         {
           HVACcontrol = acOn;
@@ -292,17 +325,11 @@ unsigned long now = millis();
       }
     break;
   }
-  display.println(currentTemp);
-//  delay(500);
+  /*display.println(currentTemp);*/
   isrTimer = 0;
-  display.display();
-  String Temp_1String = Temp_1 == 999? "--": String(Temp_1);
-  String Temp_2String = Temp_2 == 999? "--": String(Temp_2);
- jsonPublish(currentSetTemp, RemoteId_1, Temp_1String, BattStatus1, RemoteId_2, Temp_2String, BattStatus2);
- dbPublish(currentSetTemp, RemoteId_1, Temp_1String, BattStatus1, RemoteId_2, Temp_2String, BattStatus2);
-  /*jsonPublish(72,1,744,2,72);*/
-          /*sprintf(publishString,"{\"Hours\": %u, \"Minutes\": %u, \"Seconds\": %u}",hours,min,sec);*/
-
+  /*display.display();*/
+  Temp_1String = Temp_1 == 999? "--": String(Temp_1);
+  Temp_2String = Temp_2 == 999? "--": String(Temp_2);
 }
 void isrTempUp()
 {
@@ -321,6 +348,7 @@ void isrTempDown()
   isrTimer = isrTimer + 1;
   }
 }
+
 /**
  Use this function to publish the json string necessary for the app
  */
