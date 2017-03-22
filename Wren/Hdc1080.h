@@ -1,19 +1,19 @@
 /***************************************************
-   This is a library for the HDC1080 Humidity & Temp Sensor
+  This is a library for the HDC1080 Humidity & Temp Sensor
 
-   Designed specifically to work with the HDC1008 sensor from Adafruit
-   ----> https://www.adafruit.com/products/2635
+  Designed specifically to work with the HDC1008 sensor from Adafruit
+  ----> https://www.adafruit.com/products/2635
 
-   These sensors use I2C to communicate, 2 pins are required to
-   interface
-   Adafruit invests time and resources providing this open source code,
-   please support Adafruit and open-source hardware by purchasing
-   products from Adafruit!
+  These sensors use I2C to communicate, 2 pins are required to
+  interface
+  Adafruit invests time and resources providing this open source code,
+  please support Adafruit and open-source hardware by purchasing
+  products from Adafruit!
 
-   Written by Limor Fried/Ladyada for Adafruit Industries.
-   BSD license, all text above must be included in any redistribution
+  Written by Limor Fried/Ladyada for Adafruit Industries.
+  BSD license, all text above must be included in any redistribution
 
-   Sensor datasheet: http://www.ti.com/lit/ds/symlink/hdc1008.pdf
+  Sensor datasheet: http://www.ti.com/lit/ds/symlink/hdc1008.pdf
 
  ****************************************************/
 #include "application.h"
@@ -41,20 +41,20 @@
 
 
 class Hdc1080 {
-public:
-        Hdc1080();
-        boolean begin(uint8_t a = HDC1080_I2CADDR);
-        void reset(void);
-        float getTemperatureCelcius(void);      // return degrees celcius
-        float getTemperatureFahrenheit(void);   // return degrees fahrenheit
-        float getHumidity(void);        // added getter function to access private humidity
-        boolean batteryLOW(void);      // added testing of battery voltage, useful for remote monitoring
+ public:
+  Hdc1080();
+  boolean begin(uint8_t a = HDC1080_I2CADDR);
+  void reset(void);
+  float getTemperatureCelcius(void);            // return degrees celcius
+  float getTemperatureFahrenheit(void);         // return degrees fahrenheit
+  float getHumidity(void);              // added getter function to access private humidity
+  boolean batteryLOW(void);            // added testing of battery voltage, useful for remote monitoring
 
-        uint16_t read16(uint8_t a, uint8_t d=0);
-        uint32_t read32(uint8_t a, uint8_t d=0);
+  uint16_t read16(uint8_t a, uint8_t d=0);
+  uint32_t read32(uint8_t a, uint8_t d=0);
 
-        boolean readData(void); // not being used
-        float humidity, temp;
-        uint16_t battLOW;
-        uint8_t _i2caddr;
+  boolean readData(void);   // not being used
+  float humidity, temp;
+  uint16_t battLOW;
+  uint8_t _i2caddr;
 };
